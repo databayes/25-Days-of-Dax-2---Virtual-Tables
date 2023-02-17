@@ -1,0 +1,108 @@
+---------------------------------------------------------
+-- Measure: [Player with most Tournaments as Captain Q16]
+---------------------------------------------------------
+MEASURE 'Key Measures'[Player with most Tournaments as Captain Q16] = 
+    VAR __Table =
+    CALCULATETABLE(
+                SUMMARIZE(
+                'Player Appearances',
+                'Player Appearances'[Player Id],
+                'Player Appearances'[Family Name],
+                'Player Appearances'[Given Name],
+                "@Tournaments",
+                        DISTINCTCOUNT('Player Appearances'[Tournament Id]),
+                "@PlayerName",
+                        'Player Appearances'[Given Name] & " "
+                            & 'Player Appearances'[Family Name]
+                    ),
+            'Player Appearances'[Captain] = "1"
+        )
+    VAR __CountTournaments =
+        CONCATENATEX(
+            TOPN(
+                1,
+                __Table,
+                [@Tournaments], DESC
+            ),
+            [@PlayerName],
+            ", ",
+            [@PlayerName]
+        )
+    RETURN
+        __CountTournaments
+
+-----------------------------------
+-- Measure: [Most Goals Scored Q17]
+-----------------------------------
+MEASURE 'Key Measures'[Most Goals Scored Q17] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            ADDCOLUMNS(
+                SUMMARIZE('Goals', 'Goals'[Family Name], 'Goals'[Given Name], 'Goals'[Player Id], "@count", COUNT(Goals[Goal Id])), "@PlayerName", 'Goals'[Given Name] & " " & 'Goals'[Family Name]),
+            [@count]
+        ),
+        [@PlayerName],
+        ", ",
+        [@PlayerName], ASC
+    )
+
+------------------------------------------------------
+-- Measure: [Matches with biggest goal difference Q18]
+------------------------------------------------------
+MEASURE 'Key Measures'[Matches with biggest goal difference Q18] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            ADDCOLUMNS(
+                SUMMARIZE(
+                    'Matches',
+                    'Matches'[Match Name],
+                    'Matches'[Home Team Score],
+                    'Matches'[Away Team Score],
+                    'Matches'[Score]),
+                    "@goal difference", ABS(Matches[Home Team Score] - Matches[Away Team Score])
+                ),
+                [@goal difference]
+            ),
+            'Matches'[Match Name],
+            ", ",
+            'Matches'[Match Name], ASC
+        )
+
+----------------------------------------------
+-- Measure: [Most Goals scored in a Match Q19]
+----------------------------------------------
+MEASURE 'Key Measures'[Most Goals scored in a Match Q19] = 
+    VAR __Table = 
+        VAR Home = ADDCOLUMNS(SUMMARIZE(Matches, Matches[Key Id], Matches[Home Team Score]), "@Score", INT(Matches[Home Team Score]))
+        VAR Away = ADDCOLUMNS(SUMMARIZE(Matches, Matches[Key Id], Matches[Away Team Score]), "@Score", INT(Matches[Away Team Score]))
+        VAR Result = UNION(Home, Away)
+        RETURN Result
+    
+    VAR __Answer = CONCATENATEX(TOPN(1, __Table, [@Score], DESC), [@Score], ", ", [@Score], DESC)
+    
+    RETURN __Answer & " goals"
+
+-------------------------------------------------
+-- Measure: [Matches with largest goal score Q20]
+-------------------------------------------------
+MEASURE 'Key Measures'[Matches with largest goal score Q20] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            ADDCOLUMNS(
+                SUMMARIZE(
+                    'Matches',
+                    'Matches'[Match Name],
+                    'Matches'[Home Team Score],
+                    'Matches'[Away Team Score],
+                    'Matches'[Score]),
+                    "@totalgoals", Matches[Home Team Score] + Matches[Away Team Score]
+                ),
+                [@totalgoals]
+            ),
+            'Matches'[Match Name],
+            ", ",
+            'Matches'[Match Name], ASC
+        )
