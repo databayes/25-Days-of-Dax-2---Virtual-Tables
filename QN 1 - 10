@@ -1,0 +1,501 @@
+-------------------------------------
+-- Measure: [# Wins Most Tournaments]
+-------------------------------------
+MEASURE 'Key Measures'[# Wins Most Tournaments] = MAXX(VALUES('Teams'[Team Name]), [# Tournaments])
+    DisplayFolder = "Day 1 Won most Tournaments"
+    FormatString = "0"
+
+--------------------------------------
+-- Measure: [Won the most Tournaments]
+--------------------------------------
+MEASURE 'Key Measures'[Won the most Tournaments] = 
+    // won most tournaments
+    //# Tournaments = COUNTROWS(Tournaments)
+    //# Wins Most Tournaments = MAXX(VALUES('Teams'[Team Name]), [# Tournaments])
+    CALCULATE (
+        SELECTEDVALUE(Teams[Team Name] ),
+        TOPN ( 1, ALL ( Teams ), [# Wins Most Tournaments], DESC )
+    )
+    DisplayFolder = "Day 1 Won most Tournaments"
+
+-----------------------
+-- Measure: [Q1 Curbal]
+-----------------------
+MEASURE 'Key Measures'[Q1 Curbal] = 
+    VAR CountWinners =
+        SUMMARIZE(
+            'Tournaments',
+            'Tournaments'[Winner],
+            "count winners", COUNT( 'Tournaments'[Winner] )
+        ) -- count the winnders on tournament table
+    VAR TopWinner = TOPN( 1, CountWinners, [count winners] ) -- use topn to find max
+    RETURN
+        CALCULATE(
+            SELECTEDVALUE( 'Tournaments'[Winner] ),
+            TopWinner
+        ) -- choose the winner that matches the value
+    DisplayFolder = "Day 1 Won most Tournaments"
+
+-------------------------------------
+-- Measure: [Host Countries that won]
+-------------------------------------
+MEASURE 'Key Measures'[Host Countries that won] = 
+    VAR ResultTable = 
+    SUMMARIZECOLUMNS(
+        Tournaments[Host Won],
+        Tournaments[Host Country],
+        Tournaments[Key Id],
+        KEEPFILTERS( TREATAS( {1}, Tournaments[Host Won] )),
+        "No Tournaments", [# Tournaments]
+    )
+    VAR Countries = 
+        CONCATENATEX(ResultTable, Tournaments[Host Country], ", ", Tournaments[Host Country], ASC)
+    RETURN
+    Countries
+    DisplayFolder = "Day 2 Host Countries that won"
+
+-----------------------
+-- Measure: [Q2 Curbal]
+-----------------------
+MEASURE 'Key Measures'[Q2 Curbal] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            SUMMARIZE(
+                'Tournaments',
+                'Tournaments'[Host Country],
+                "host won", SUM( 'Tournaments'[Host Won] )
+            ),
+            [host won]
+        ),
+        'Tournaments'[Host Country],
+        ", ",
+        'Tournaments'[Host Country], ASC
+    )
+    DisplayFolder = "Day 2 Host Countries that won"
+
+-----------------------------------------
+-- Measure: [Periods between Tournaments]
+-----------------------------------------
+MEASURE 'Key Measures'[Periods between Tournaments] = 
+    VAR FirstYear =
+        CALCULATE(
+            MIN( 'Tournaments'[Year] ),
+            ALL( 'Tournaments' )
+        )
+    VAR _CurrentYear = SELECTEDVALUE( 'Tournaments'[Year] )
+    VAR _PreviousYear =
+        CALCULATE(
+            MAX( 'Tournaments'[Year] ),
+            FILTER(
+                ALLSELECTED( 'Tournaments' ),
+                'Tournaments'[Year] < _CurrentYear
+            )
+        )
+    VAR Result =
+        IF(
+            _CurrentYear = FirstYear,
+            BLANK( ),
+            _CurrentYear - _PreviousYear
+        )
+    RETURN
+        Result
+    DisplayFolder = "Day 3 Longest gap in years between tournaments"
+    FormatString = "0"
+
+------------------------------------------------
+-- Measure: [Longest Period between Tournaments]
+------------------------------------------------
+MEASURE 'Key Measures'[Longest Period between Tournaments] = 
+    CONVERT(
+        MAXX( 'Tournaments', [Periods between Tournaments] ),
+        STRING
+    )
+        & " Years"
+    DisplayFolder = "Day 3 Longest gap in years between tournaments"
+
+-----------------------
+-- Measure: [Q3 Curbal]
+-----------------------
+MEASURE 'Key Measures'[Q3 Curbal] = 
+    MAXX(
+        ADDCOLUMNS(
+            'Tournaments',
+            "Gap Years",
+                VAR currentYear = 'Tournaments'[Year]
+                VAR prevYear =
+                    CALCULATE(
+                        MIN( 'Tournaments'[Year] ), -- for each row find the min tournament year where the year is greater than the current year
+                        FILTER( 'Tournaments', 'Tournaments'[Year] > currentYear )
+                    )
+                VAR Result =
+                    IF(
+                        prevYear = BLANK( ),
+                        BLANK( ),
+                        prevYear - 'Tournaments'[Year]
+                    )
+                RETURN
+                    Result
+        ),
+        [Gap Years]
+    )
+        & " years"
+    DisplayFolder = "Day 3 Longest gap in years between tournaments"
+
+------------------------------------
+-- Measure: [Hosts most Tournaments]
+------------------------------------
+MEASURE 'Key Measures'[Hosts most Tournaments] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            SUMMARIZECOLUMNS(
+                'Tournaments'[Host Country],
+                "Tournaments Hosted", [# Tournaments]
+            ),
+            [# Tournaments], DESC
+        ),
+        'Tournaments'[Host Country],
+        ", ",
+        'Tournaments'[Host Country], ASC
+    )
+    DisplayFolder = "Day 4 Highest Number of hosted tournaments"
+
+-----------------------
+-- Measure: [Q4 Curbal]
+-----------------------
+MEASURE 'Key Measures'[Q4 Curbal] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            SUMMARIZE(
+                'Tournaments',
+                'Tournaments'[Host Country],
+                "Hosted", COUNT( 'Tournaments'[Host Country] )
+            ),
+            [Hosted], DESC
+        ),
+        'Tournaments'[Host Country],
+        ", ",
+        'Tournaments'[Host Country]
+    )
+    DisplayFolder = "Day 4 Highest Number of hosted tournaments"
+
+---------------------------------------
+-- Measure: [# Number of Second Places]
+---------------------------------------
+MEASURE 'Key Measures'[# Number of Second Places] = CALCULATE([# Tournament Standings], 'Tournament Standings'[Position] = "2")
+    DisplayFolder = "Day 5 Country with most second place finishes"
+    FormatString = "0"
+
+-------------------------------------
+-- Measure: [Most 2nd Place finishes]
+-------------------------------------
+MEASURE 'Key Measures'[Most 2nd Place finishes] = 
+    CONCATENATEX(
+        TOPN(1, 
+        SUMMARIZECOLUMNS('Teams'[Team Name], 
+        "Tournaments Second", [# Number of Second Places]), 
+        [# Number of Second Places],
+        DESC),
+        'Teams'[Team Name],
+        ", ",
+        'Teams'[Team Name], ASC)
+    DisplayFolder = "Day 5 Country with most second place finishes"
+
+-----------------------
+-- Measure: [Q5 Curbal]
+-----------------------
+MEASURE 'Key Measures'[Q5 Curbal] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            FILTER(
+                SUMMARIZE(
+                    'Tournament Standings',
+                    'Tournament Standings'[Team Name],
+                    'Tournament Standings'[Position],
+                    "Number of 2nds", COUNT( 'Tournament Standings'[Position] )
+                ),
+                'Tournament Standings'[Position] = "2"
+            ),
+            [# Number of Second Places]
+        ),
+        'Tournament Standings'[Team Name],
+        ", ",
+        'Tournament Standings'[Team Name], ASC
+    )
+    DisplayFolder = "Day 5 Country with most second place finishes"
+
+--------------------------------
+-- Measure: [# Team Appearances]
+--------------------------------
+MEASURE 'Key Measures'[# Team Appearances] = COUNTROWS('Team Appearances')
+    DisplayFolder = "Day 6 Country with most appearances"
+    FormatString = "0"
+
+-----------------------------------
+-- Measure: [Most Team Appearances]
+-----------------------------------
+MEASURE 'Key Measures'[Most Team Appearances] = 
+    CONCATENATEX(
+        TOPN(1, 
+        SUMMARIZECOLUMNS('Teams'[Team Name], 
+        "Most Appearances", [# Team Appearances]), 
+        [# Team Appearances],
+        DESC),
+        'Teams'[Team Name],
+        ", ",
+        'Teams'[Team Name], ASC)
+    DisplayFolder = "Day 6 Country with most appearances"
+
+---------------------------
+-- Measure: [Q6 Curbal way]
+---------------------------
+MEASURE 'Key Measures'[Q6 Curbal way] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            SUMMARIZECOLUMNS(
+                'Teams'[Team Name],
+                "Most Appearances", COUNT( 'Team Appearances'[Key Id] )
+            ),
+            [Most Appearances], DESC
+        ),
+        'Teams'[Team Name],
+        ", ",
+        'Teams'[Team Name], ASC
+    )
+    DisplayFolder = "Day 6 Country with most appearances"
+
+------------------------------------------------------
+-- Measure: [# Tournament Standings 1st and 2nd place]
+------------------------------------------------------
+MEASURE 'Key Measures'[# Tournament Standings 1st and 2nd place] = CALCULATE([# Tournament Standings], 'Tournament Standings'[Position] IN {"1","2"})
+    DisplayFolder = "Day 7 Most finishes in top two"
+    FormatString = "0"
+
+----------------------------------------
+-- Measure: [Most 1st and 2nd Positions]
+----------------------------------------
+MEASURE 'Key Measures'[Most 1st and 2nd Positions] = 
+    CONCATENATEX(
+        TOPN(1, 
+        SUMMARIZECOLUMNS('Teams'[Team Name], 
+        "Most 1st and 2nd", [# Tournament Standings 1st and 2nd place]), 
+        [# Tournament Standings 1st and 2nd place],
+        DESC),
+        'Teams'[Team Name],
+        ", ",
+        'Teams'[Team Name], ASC)
+    DisplayFolder = "Day 7 Most finishes in top two"
+
+---------------------------
+-- Measure: [Q7 Curbal way]
+---------------------------
+MEASURE 'Key Measures'[Q7 Curbal way] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            FILTER(
+                SUMMARIZE(
+                    'Tournament Standings',
+                    'Tournament Standings'[Team Name],
+                    'Tournament Standings'[Position],
+                    "Count Position", COUNT( 'Tournament Standings'[Position] )
+                ),
+                'Tournament Standings'[Position] IN { "1", "2" }
+            ),
+            [Count Position]
+        ),
+        'Tournament Standings'[Team Name],
+        ", ",
+        'Tournament Standings'[Team Name], ASC
+    )
+    DisplayFolder = "Day 7 Most finishes in top two"
+
+-----------------------------------------
+-- Measure: [Longest Period between Wins]
+-----------------------------------------
+MEASURE 'Key Measures'[Longest Period between Wins] = 
+    VAR PrevWin =
+        CALCULATE(
+            MAX( 'Tournament Standings'[PreviousWin] ),
+            'Tournament Standings'[Position] = "1"
+        )
+    VAR Result =
+        IF(
+            ISBLANK( PrevWin ),
+            BLANK( ),
+            CONVERT( PrevWin, STRING ) & " Years"
+        )
+    RETURN
+        Result
+    DisplayFolder = "Day 8 Longest Period between Wins"
+
+-------------------------
+-- Measure: [Q8 Jen copy]
+-------------------------
+MEASURE 'Key Measures'[Q8 Jen copy] = 
+    MAXX(
+        ADDCOLUMNS(
+            'Tournaments',
+            "Gap in Wins",
+                VAR CurrYr = 'Tournaments'[Year]
+                VAR CurrWinner = 'Tournaments'[Winner]
+                VAR PrevYr =
+                    CALCULATE(
+                        MIN( 'Tournaments'[Year] ),
+                        FILTER(
+                            'Tournaments',
+                            'Tournaments'[Year] > CurrYr
+                                && 'Tournaments'[Winner] = CurrWinner
+                        )
+                    )
+                RETURN
+                    IF(
+                        PrevYr = BLANK( ),
+                        BLANK( ),
+                        PrevYr - 'Tournaments'[Year]
+                    )
+        ),
+        [Gap in Wins]
+    )
+        & " years"
+    DisplayFolder = "Day 8 Longest Period between Wins"
+
+------------------------------------------
+-- Measure: [Shortest Period between Wins]
+------------------------------------------
+MEASURE 'Key Measures'[Shortest Period between Wins] = 
+    VAR PrevWin =
+        CALCULATE(
+            MIN( 'Tournament Standings'[PreviousWin] ),
+            'Tournament Standings'[Position] = "1"
+        )
+    VAR Result = IF( ISBLANK( PrevWin ), BLANK( ), PrevWin )
+    RETURN
+        Result
+    DisplayFolder = "Day 9 Most Consecutive Wins"
+
+-----------------------------------
+-- Measure: [Most Consecutive Wins]
+-----------------------------------
+MEASURE 'Key Measures'[Most Consecutive Wins] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            SUMMARIZECOLUMNS(
+                'Teams'[Team Name],
+                "MostConsecutiveWins", [Shortest Period between Wins]
+            ),
+            [Shortest Period between Wins], ASC
+        ),
+        'Teams'[Team Name],
+        ", ",
+        'Teams'[Team Name], ASC
+    )
+    DisplayFolder = "Day 9 Most Consecutive Wins"
+
+-------------------------
+-- Measure: [Q9 Jen copy]
+-------------------------
+MEASURE 'Key Measures'[Q9 Jen copy] = 
+    MINX(
+        ADDCOLUMNS(
+            'Tournaments',
+            "Gap in Wins",
+                VAR CurrYr = 'Tournaments'[Year] --current year for row context
+                VAR CurrWinner = 'Tournaments'[Winner] -- current winner for row context
+                VAR PrevYr =
+                    CALCULATE(
+                        MIN( 'Tournaments'[Year] ), -- min year
+                        FILTER(
+                            'Tournaments',
+                            'Tournaments'[Year] > CurrYr
+                                && 'Tournaments'[Winner] = CurrWinner
+                        )
+                    ) -- iterate through each row to show the first year which is greater than current row year and is the same tournament winner
+                RETURN
+                    IF(
+                        PrevYr = BLANK( ),
+                        BLANK( ),
+                        PrevYr - 'Tournaments'[Year]
+                    )
+        ),
+        [Gap in Wins]
+    )
+        & " years"
+    DisplayFolder = "Day 9 Most Consecutive Wins"
+
+------------------------------------------
+-- Measure: [Finals played but never lost]
+------------------------------------------
+MEASURE 'Key Measures'[Finals played but never lost] = IF([# Tournament Standings 2nd place] = 0, [# Tournament Standings 1st place])
+    DisplayFolder = "Day 10 Most finals played but never lost"
+    FormatString = "0"
+
+----------------------------------------------
+-- Measure: [# Tournament Standings 1st place]
+----------------------------------------------
+MEASURE 'Key Measures'[# Tournament Standings 1st place] = CALCULATE([# Tournament Standings], 'Tournament Standings'[Position] IN {"1"})
+    DisplayFolder = "Day 10 Most finals played but never lost"
+    FormatString = "0"
+
+----------------------------------------------
+-- Measure: [# Tournament Standings 2nd place]
+----------------------------------------------
+MEASURE 'Key Measures'[# Tournament Standings 2nd place] = CALCULATE([# Tournament Standings], 'Tournament Standings'[Position] IN {"2"})
+    DisplayFolder = "Day 10 Most finals played but never lost"
+    FormatString = "0"
+
+-----------------------------------------------
+-- Measure: [Most Finals played but never lost]
+-----------------------------------------------
+MEASURE 'Key Measures'[Most Finals played but never lost] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            SUMMARIZECOLUMNS(
+                'Teams'[Team Name],
+                "MostFinals played but never lost", [Finals played but never lost]
+            ),
+            [Finals played but never lost], DESC
+        ),
+        'Teams'[Team Name],
+        ", ",
+        'Teams'[Team Name], ASC
+    )
+    DisplayFolder = "Day 10 Most finals played but never lost"
+
+----------------------------------------------------
+-- Measure: [Most Finals played but never lost copy]
+----------------------------------------------------
+MEASURE 'Key Measures'[Most Finals played but never lost copy] = 
+    VAR FirstPosition =
+        CALCULATE(
+            [# Tournament Standings],
+            'Tournament Standings'[Position] IN { "1" }
+        )
+    VAR SECPosition =
+        CALCULATE(
+            [# Tournament Standings],
+            'Tournament Standings'[Position] IN { "2" }
+        )
+    VAR FinalsPlayedNotLost =
+        IF( SECPosition = 0, 0, FirstPosition )
+    RETURN
+        CONCATENATEX(
+            TOPN(
+                1,
+                SUMMARIZECOLUMNS(
+                    'Teams'[Team Name],
+                    "MostFinals played but never lost", FinalsPlayedNotLost
+                ),
+                FinalsPlayedNotLost, DESC
+            ),
+            'Teams'[Team Name],
+            ", ",
+            'Teams'[Team Name], ASC
+        )
+    DisplayFolder = "Day 10 Most finals played but never lost"
