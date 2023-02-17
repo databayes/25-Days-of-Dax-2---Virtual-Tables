@@ -1,0 +1,208 @@
+----------------------------------------
+-- Measure: [Most Tournaments Played v2]
+----------------------------------------
+MEASURE 'Key Measures'[Most Tournaments Played v2] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            ADDCOLUMNS(
+                'Players',
+                "@PlayerName",
+                    'Players'[Given Name] & " " & 'Players'[Family Name]
+            ),
+            'Players'[Count Tournaments]
+        ),
+        [@PlayerName],
+        ", ",
+        [@PlayerName], ASC
+    )
+    DisplayFolder = "Day 11 Most Tournaments Played"
+
+---------------------------------
+-- Measure: [Most Matches Played]
+---------------------------------
+MEASURE 'Key Measures'[Most Matches Played] = 
+    CONCATENATEX(
+        TOPN(
+            1,
+            ADDCOLUMNS(
+                SUMMARIZE(
+                    'Player Appearances',
+                    'Player Appearances'[Family Name],
+                    'Player Appearances'[Given Name],
+                    'Player Appearances'[Player Id],
+                    "@count",
+                        COUNT( 'Player Appearances'[Tournament Id] )
+                ),
+                "@PlayerName",
+                    'Player Appearances'[Given Name] & " "
+                        & 'Player Appearances'[Family Name]
+            ),
+            [@count]
+        ),
+        [@PlayerName],
+        ", ",
+        [@PlayerName], ASC
+    )
+    DisplayFolder = "Day 12 Most Matches Played"
+
+----------------------------
+-- Measure: [YoungestPlayer]
+----------------------------
+MEASURE 'Key Measures'[YoungestPlayer] = 
+    VAR YoungestPlayerTable =
+        CALCULATETABLE(
+            ADDCOLUMNS(
+                SUMMARIZE(
+                    'Players',
+                    'Players'[Player Id],
+                    'Players'[Birth Date],
+                    'Players'[List Tournaments],
+                    "@YearofBirth", LEFT( 'Players'[Birth Date], 4 )
+                ),
+                "@TournamentYear", LEFT( 'Players'[List Tournaments], 4 )
+            ),
+            'Players'[Birth Date] <> "not available"
+                && 'Players'[Birth Date] <> BLANK( )
+        ) -- create table
+    VAR Age =
+        ADDCOLUMNS(
+            YoungestPlayerTable,
+            "@Age", INT( [@TournamentYear] ) - INT( [@YearofBirth] )
+        )
+    VAR Youngest = MINX( Age, [@Age] ) -- use min to find youngest
+    RETURN
+        Youngest & " years"
+    DisplayFolder = "Day 13Youngest Player"
+
+---------------------------------
+-- Measure: [Youngest Player Q13]
+---------------------------------
+MEASURE 'Key Measures'[Youngest Player Q13] = 
+    VAR __Table =
+        ADDCOLUMNS(
+            'Player Appearances',
+            "@DateOfBirth",
+                LOOKUPVALUE(
+                    'Players'[Birth Date],
+                    'Players'[Player Id],
+                    'Player Appearances'[Player Id]
+                ),
+            "@MatchDate",
+                LOOKUPVALUE(
+                    'Matches'[Match Date],
+                    'Matches'[Match Id],
+                    'Player Appearances'[Match Id]
+                )
+        )
+    VAR __Age =
+        CONCATENATEX(
+            TOPN(
+                1,
+                ADDCOLUMNS(
+                    __Table,
+                    "DaysBetweenAge",
+                        DATEDIFF( [@MatchDate], [@DateOfBirth], DAY ),
+                    "@PlayerName",
+                        'Player Appearances'[Given Name] & " "
+                            & 'Player Appearances'[Family Name]
+                ),
+                'Player Appearances'[DaysBetween], ASC
+            ),
+            [@PlayerName],
+            ", ",
+            [@PlayerName]
+        )
+    RETURN
+        __Age
+    DisplayFolder = "Day 13Youngest Player"
+
+--------------------------------------------
+-- Measure: [Youngest Player in a Final Q14]
+--------------------------------------------
+MEASURE 'Key Measures'[Youngest Player in a Final Q14] = 
+    VAR __Table =
+        CALCULATETABLE(
+            ADDCOLUMNS(
+                'Player Appearances',
+                "@DateOfBirth",
+                    LOOKUPVALUE(
+                        'Players'[Birth Date],
+                        'Players'[Player Id],
+                        'Player Appearances'[Player Id]
+                    ),
+                "@MatchDate",
+                    LOOKUPVALUE(
+                        'Matches'[Match Date],
+                        'Matches'[Match Id],
+                        'Player Appearances'[Match Id]
+                    )
+            ),
+            'Player Appearances'[Stage Name] = "final"
+        )
+    VAR __Age =
+        CONCATENATEX(
+            TOPN(
+                1,
+                ADDCOLUMNS(
+                    __Table,
+                    "DaysBetweenAge",
+                        DATEDIFF( [@MatchDate], [@DateOfBirth], DAY ),
+                    "@PlayerName",
+                        'Player Appearances'[Given Name] & " "
+                            & 'Player Appearances'[Family Name]
+                ),
+                'Player Appearances'[DaysBetween], ASC
+            ),
+            [@PlayerName],
+            ", ",
+            [@PlayerName]
+        )
+    RETURN
+        __Age
+    DisplayFolder = "Day 14 Youngest Player in a Final"
+
+--------------------------------
+-- Measure: [Oldest Captain Q15]
+--------------------------------
+MEASURE 'Key Measures'[Oldest Captain Q15] = 
+    VAR __Table =
+        CALCULATETABLE(
+            ADDCOLUMNS(
+                'Player Appearances',
+                "@DateOfBirth",
+                    LOOKUPVALUE(
+                        'Players'[Birth Date],
+                        'Players'[Player Id],
+                        'Player Appearances'[Player Id]
+                    ),
+                "@MatchDate",
+                    LOOKUPVALUE(
+                        'Matches'[Match Date],
+                        'Matches'[Match Id],
+                        'Player Appearances'[Match Id]
+                    )
+            ),
+            'Player Appearances'[Captain] = "1"
+        )
+    VAR __Age =
+        CONCATENATEX(
+            TOPN(
+                1,
+                ADDCOLUMNS(
+                    __Table,
+                    "DaysBetweenAge",
+                        DATEDIFF( [@MatchDate], [@DateOfBirth], DAY ),
+                    "@PlayerName",
+                        'Player Appearances'[Given Name] & " "
+                            & 'Player Appearances'[Family Name]
+                ),
+                'Player Appearances'[DaysBetween], DESC
+            ),
+            [@PlayerName],
+            ", ",
+            [@PlayerName]
+        )
+    RETURN
+        __Age
+    DisplayFolder = "Day 15 Oldest Captain"
