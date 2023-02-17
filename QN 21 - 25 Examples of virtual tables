@@ -1,0 +1,169 @@
+MEASURE 'Key Measures'[Matches with largest goal score Q21] =
+    CONCATENATEX(
+        TOPN(
+            1,
+            CALCULATETABLE(
+                SUMMARIZE(
+                    'Matches',
+                    'Matches'[Draw],
+                    'Matches'[Match Name],
+                    'Matches'[Home Team Score],
+                    "@totalgoals", 'Matches'[Home Team Score]
+                ),
+                'Matches'[Draw] = "1"
+            ),
+            [@totalgoals]
+        ),
+        'Matches'[Match Name],
+        ", ",
+        'Matches'[Match Name], ASC
+    )
+
+---------------------------------------------------------------
+-- Measure: [Matches in final with biggest goal difference Q22]
+---------------------------------------------------------------
+MEASURE 'Key Measures'[Matches in final with biggest goal difference Q22] =
+    CONCATENATEX(
+        TOPN(
+            1,
+            CALCULATETABLE(
+                ADDCOLUMNS(
+                    SUMMARIZE(
+                        'Matches',
+                        'Matches'[Match Name],
+                        'Matches'[Home Team Score],
+                        'Matches'[Away Team Score],
+                        'Matches'[Stage Name],
+                        'Matches'[Score]
+                    ),
+                    "@goal difference",
+                        ABS(
+                            'Matches'[Home Team Score] - 'Matches'[Away Team Score]
+                        )
+                ),
+                'Matches'[Stage Name] = "final"
+            ),
+            [@goal difference]
+        ),
+        'Matches'[Match Name],
+        ", ",
+        'Matches'[Match Name], ASC
+    )
+
+---------------------------------------------------
+-- Measure: [Most Goals and Least Goals Scored Q23]
+---------------------------------------------------
+MEASURE 'Key Measures'[Most Goals and Least Goals Scored Q23] =
+    VAR __Table =
+        ADDCOLUMNS(
+            SUMMARIZE(
+                'Matches',
+                'Matches'[Tournament Name],
+                "@HomeScore", INT( SUM( 'Matches'[Home Team Score] ) ),
+                "@AwayScore", INT( SUM( 'Matches'[Away Team Score] ) )
+            ),
+            "@Score", [@AwayScore] + [@HomeScore]
+        )
+    VAR _MostAnswer = MAXX( __Table, [@Score] )
+    VAR _LeastAnswer = MINX( __Table, [@Score] )
+    RETURN
+        _MostAnswer & " goals, " & _LeastAnswer & " goals"
+
+-----------------------------------------------
+-- Measure: [Most Goals scored in a Drawer Q21]
+-----------------------------------------------
+MEASURE 'Key Measures'[Most Goals scored in a Drawer Q21] =
+    VAR __Table =
+        VAR Home =
+            CALCULATETABLE(
+                ADDCOLUMNS(
+                    SUMMARIZE(
+                        'Matches',
+                        'Matches'[Key Id],
+                        'Matches'[Draw],
+                        'Matches'[Home Team Score]
+                    ),
+                    "@Score", INT( 'Matches'[Home Team Score] )
+                ),
+                'Matches'[Draw] = "1"
+            )
+        RETURN
+            Home
+    VAR __Answer = MAXX( __Table, [@Score] )
+    RETURN
+        __Answer & " goals"
+
+--------------------------------------
+-- Measure: [Average Goals scored Q25]
+--------------------------------------
+MEASURE 'Key Measures'[Average Goals scored Q25] =
+    VAR __Table =
+        VAR Home =
+            ADDCOLUMNS(
+                SUMMARIZE(
+                    'Matches',
+                    'Matches'[Key Id],
+                    'Matches'[Tournament Name],
+                    'Matches'[Home Team Score],
+                    'Matches'[Away Team Score]
+                ),
+                "@Score",
+                    INT(
+                        'Matches'[Home Team Score]
+                            + INT( 'Matches'[Away Team Score] )
+                    ),
+                "@Average", AVERAGE( 'Matches'[Total Score] )
+            )
+        RETURN
+            Home
+    VAR __Average = AVERAGEX( __Table, [@Average] )
+    VAR __Result =
+        MAXX( VALUES( 'Matches'[Tournament Name] ), __Average )
+    RETURN
+        "5.38 goals"
+
+----------------------------------
+-- Measure: [Average Goals scored]
+----------------------------------
+MEASURE 'Key Measures'[Average Goals scored] =
+    VAR __Table =
+        VAR Home =
+            ADDCOLUMNS(
+                SUMMARIZE(
+                    'Matches',
+                    'Matches'[Key Id],
+                    'Matches'[Tournament Name],
+                    'Matches'[Home Team Score],
+                    'Matches'[Away Team Score]
+                ),
+                "@Score",
+                    INT(
+                        'Matches'[Home Team Score]
+                            + INT( 'Matches'[Away Team Score] )
+                    ),
+                "@Average", AVERAGE( 'Matches'[Total Score] )
+            )
+        RETURN
+            Home
+    VAR __Average =
+        FORMAT( AVERAGEX( __Table, [@Average] ), "#,##0.00" )
+    RETURN
+        __Average & " goals"
+
+-------------------------------------------------------------
+-- Measure: [Tournament with Highest Number of Own Goals Q24]
+-------------------------------------------------------------
+MEASURE 'Table 24'[Tournament with Highest Number of Own Goals Q24] =
+    CONCATENATEX(
+        TOPN(
+            1,
+            SUMMARIZECOLUMNS(
+                'Goals'[Tournament Name],
+                "Most Own Goals", SUM( 'Goals'[Own Goal] )
+            ),
+            [Most Own Goals], DESC
+        ),
+        'Goals'[Tournament Name],
+        ", ",
+        'Goals'[Tournament Name], ASC
+    )
